@@ -24,7 +24,7 @@ I reproduced issue #72 as a missing-feature gap. The expected offline audit scri
 
 **PLAN.md link:** https://github.com/antunishdPursuit/pathreview/blob/feat/72-bias-audit-report/PLAN.md
 
-**Walkthrough video (recommended):** Not recorded yet.
+**Walkthrough video (recommended):** https://www.loom.com/share/a48973d934254ea8b9481bd80d1d820e
 
 **Blockers or open questions:**
 I still need to confirm which stored review source should be sampled and how the report should label false positives and false negatives when there is no existing ground-truth dataset.
