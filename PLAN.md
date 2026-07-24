@@ -5,17 +5,17 @@
 
 ### Understand
 
-The project already has bias detection logic in `safety/bias_detector.py`, but there is no offline audit script at `scripts/audit_bias.py`. The expected behavior is that a contributor can run a script that samples stored reviews, passes each review through `BiasDetector.detect_bias(text)`, and produces a clear report about possible bias results. The actual behavior is that the detector can analyze one text string at a time, but there is no script that runs it over stored review data or summarizes false positive and false negative patterns.
+The project already has bias detection logic in `safety/bias_detector.py`, but there is no offline audit script at `scripts/audit_bias.py`. What we want is that a contributor can run a script that samples stored reviews, passes each review through `BiasDetector.detect_bias(text)`, and produces a clear report about possible bias results. What is actually happening is that the detector can analyze one text string at a time, but there is no script that runs it over stored review data or summarizes false positive and false negative patterns.
 
 ### Map
 
 Files I expect to inspect or touch:
 
-- `scripts/audit_bias.py`: add the new offline audit script.
-- `safety/bias_detector.py`: reuse `BiasDetector.detect_bias(text)` and only adjust detector behavior if needed.
+- `scripts/audit_bias.py`: add the script.
+- `safety/bias_detector.py`: reuse `BiasDetector.detect_bias(text)` method
 - `scripts/run_evals.py`: use as a nearby example for script structure.
 - `scripts/seed_db.py`: inspect sample review data shape if the script needs seeded reviews.
-- `tests/`: add or update tests if there is an existing pattern for script or safety tests.
+- `tests/`: add or update tests if need be
 
 Important functions or modules:
 
