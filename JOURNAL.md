@@ -17,14 +17,15 @@ PathReview has a bias detector, but there is not yet an offline audit report tha
 
 ## Week 8 - Reproduction & solution planning
 
-**Reproduction commit link:** To be added after this reproduction note is committed.
+**Reproduction commit link:** https://github.com/antunishdPursuit/pathreview/commit/fc3d948dca0a39e1a8e9d5c88395f226fa9165bc
 
 **Reproduction summary:**
 I reproduced issue #72 as a missing-feature gap. The expected offline audit script, `scripts/audit_bias.py`, does not exist, while the reusable bias detection logic exists in `safety/bias_detector.py` through `BiasDetector.detect_bias(text)`.
 
-**PLAN.md link:** To be added after `PLAN.md` is created.
+**PLAN.md link:** https://github.com/antunishdPursuit/pathreview/blob/feat/72-bias-audit-report/PLAN.md
 
 **Walkthrough video (recommended):** Not recorded yet.
 
 **Blockers or open questions:**
 I still need to confirm which stored review source should be sampled and how the report should label false positives and false negatives when there is no existing ground-truth dataset.
+
