@@ -1,11 +1,24 @@
 """Run an offline bias audit over stored portfolio reviews."""
 
+from collections.abc import Sequence
+from typing import TypedDict
+
 from sqlalchemy import func, select
 
 from core.database import AsyncSessionLocal
 from core.models.review import Review
+from safety.bias_detector import BiasDetector
 
 SAMPLE_SIZE = 100
+
+
+class AuditResult(TypedDict):
+    """One review's bias detection result."""
+
+    review_id: str
+    review_text: str
+    predicted_biased: bool
+    reason: str
 
 
 def extract_review_text(review: Review) -> str:
@@ -31,6 +44,28 @@ def extract_review_text(review: Review) -> str:
             )
 
     return "\n".join(text_parts)
+
+
+def audit_reviews(reviews: Sequence[Review]) -> list[AuditResult]:
+    """Run the existing bias detector once for each nonempty review."""
+    results: list[AuditResult] = []
+
+    for review in reviews:
+        review_text = extract_review_text(review)
+        if not review_text:
+            continue
+
+        predicted_biased, reason = BiasDetector.detect_bias(review_text)
+        results.append(
+            {
+                "review_id": str(review.id),
+                "review_text": review_text,
+                "predicted_biased": predicted_biased,
+                "reason": reason,
+            }
+        )
+
+    return results
 
 
 async def load_reviews() -> list[Review]:
