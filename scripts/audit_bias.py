@@ -15,6 +15,15 @@ from core.models.review import Review
 from safety.bias_detector import BiasDetector
 
 SAMPLE_SIZE = 100
+VALID_DEMOGRAPHIC_SIGNALS = frozenset(
+    {
+        "age",
+        "education_background",
+        "socioeconomic_background",
+        "immigration_status",
+        "none",
+    }
+)
 REPORT_PATH = Path(__file__).resolve().parents[1] / "bias_audit_report.json"
 EVALUATED_REPORT_PATH = Path(__file__).resolve().parents[1] / "bias_audit_evaluated.json"
 logger = get_logger(__name__)
@@ -166,6 +175,14 @@ def load_report(input_path: Path) -> AuditReport:
             )
         if isinstance(demographic_signal, str) and not demographic_signal.strip():
             raise ValueError(f"Review {review_id} demographic_signal cannot be blank.")
+        if isinstance(demographic_signal, str):
+            signal = demographic_signal.strip()
+            if signal not in VALID_DEMOGRAPHIC_SIGNALS:
+                valid_signals = ", ".join(sorted(VALID_DEMOGRAPHIC_SIGNALS))
+                raise ValueError(
+                    f"Review {review_id} demographic_signal must be one of: {valid_signals}."
+                )
+            entry["demographic_signal"] = signal
 
     return cast("AuditReport", data)
 
