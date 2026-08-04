@@ -1,7 +1,9 @@
 """Run an offline bias audit over stored portfolio reviews."""
 
 import asyncio
+import json
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TypedDict
 
 from sqlalchemy import func, select
@@ -12,6 +14,7 @@ from core.models.review import Review
 from safety.bias_detector import BiasDetector
 
 SAMPLE_SIZE = 100
+REPORT_PATH = Path(__file__).resolve().parents[1] / "bias_audit_report.json"
 logger = get_logger(__name__)
 
 
@@ -22,6 +25,26 @@ class AuditResult(TypedDict):
     review_text: str
     predicted_biased: bool
     reason: str
+
+
+class AuditMetrics(TypedDict):
+    """Metric fields that require human-reviewed ground-truth labels."""
+
+    status: str
+    reason: str
+    false_positive_rate_by_demographic_signal: dict[str, float]
+    false_negative_rate_by_demographic_signal: dict[str, float]
+
+
+class AuditReport(TypedDict):
+    """Serialized output from one audit run."""
+
+    sampled_count: int
+    checked_count: int
+    skipped_count: int
+    detected_bias_count: int
+    metrics: AuditMetrics
+    results: list[AuditResult]
 
 
 def extract_review_text(review: Review) -> str:
@@ -78,6 +101,36 @@ def audit_reviews(reviews: Sequence[Review]) -> list[AuditResult]:
     return results
 
 
+def write_report(
+    sampled_count: int,
+    results: list[AuditResult],
+    output_path: Path = REPORT_PATH,
+) -> Path:
+    """Write the audit results and current metric availability to JSON."""
+    report: AuditReport = {
+        "sampled_count": sampled_count,
+        "checked_count": len(results),
+        "skipped_count": sampled_count - len(results),
+        "detected_bias_count": sum(result["predicted_biased"] for result in results),
+        "metrics": {
+            "status": "unavailable",
+            "reason": (
+                "Ground-truth annotations are required to calculate false "
+                "positive and false negative rates by demographic signal."
+            ),
+            "false_positive_rate_by_demographic_signal": {},
+            "false_negative_rate_by_demographic_signal": {},
+        },
+        "results": results,
+    }
+    output_path.write_text(
+        json.dumps(report, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    logger.info("bias_audit_report_written", path=str(output_path))
+    return output_path
+
+
 async def load_reviews() -> list[Review]:
     """Load a random sample of completed reviews with stored sections.
 
@@ -101,6 +154,7 @@ async def run_audit() -> list[AuditResult]:
     logger.info("bias_audit_started", sample_limit=SAMPLE_SIZE)
     reviews = await load_reviews()
     results = audit_reviews(reviews)
+    write_report(len(reviews), results)
 
     logger.info(
         "bias_audit_completed",
