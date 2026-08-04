@@ -1,15 +1,18 @@
 """Run an offline bias audit over stored portfolio reviews."""
 
+import asyncio
 from collections.abc import Sequence
 from typing import TypedDict
 
 from sqlalchemy import func, select
 
 from core.database import AsyncSessionLocal
+from core.logging import configure_logging, get_logger
 from core.models.review import Review
 from safety.bias_detector import BiasDetector
 
 SAMPLE_SIZE = 100
+logger = get_logger(__name__)
 
 
 class AuditResult(TypedDict):
@@ -53,9 +56,16 @@ def audit_reviews(reviews: Sequence[Review]) -> list[AuditResult]:
     for review in reviews:
         review_text = extract_review_text(review)
         if not review_text:
+            logger.info("bias_audit_review_skipped", review_id=str(review.id))
             continue
 
         predicted_biased, reason = BiasDetector.detect_bias(review_text)
+        logger.info(
+            "bias_audit_review_checked",
+            review_id=str(review.id),
+            predicted_biased=predicted_biased,
+            reason=reason or None,
+        )
         results.append(
             {
                 "review_id": str(review.id),
@@ -84,3 +94,29 @@ async def load_reviews() -> list[Review]:
     async with AsyncSessionLocal() as session:
         result = await session.execute(statement)
         return list(result.scalars().all())
+
+
+async def run_audit() -> list[AuditResult]:
+    """Load eligible reviews, audit them, and log a summary."""
+    logger.info("bias_audit_started", sample_limit=SAMPLE_SIZE)
+    reviews = await load_reviews()
+    results = audit_reviews(reviews)
+
+    logger.info(
+        "bias_audit_completed",
+        sampled_count=len(reviews),
+        checked_count=len(results),
+        skipped_count=len(reviews) - len(results),
+        detected_bias_count=sum(result["predicted_biased"] for result in results),
+    )
+    return results
+
+
+def main() -> None:
+    """Configure logging and run the offline audit."""
+    configure_logging()
+    asyncio.run(run_audit())
+
+
+if __name__ == "__main__":
+    main()
