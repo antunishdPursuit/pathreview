@@ -1,10 +1,11 @@
 """Run an offline bias audit over stored portfolio reviews."""
 
+import argparse
 import asyncio
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from sqlalchemy import func, select
 
@@ -15,6 +16,7 @@ from safety.bias_detector import BiasDetector
 
 SAMPLE_SIZE = 100
 REPORT_PATH = Path(__file__).resolve().parents[1] / "bias_audit_report.json"
+EVALUATED_REPORT_PATH = Path(__file__).resolve().parents[1] / "bias_audit_evaluated.json"
 logger = get_logger(__name__)
 
 
@@ -34,8 +36,8 @@ class AuditMetrics(TypedDict):
 
     status: str
     reason: str
-    false_positive_rate_by_demographic_signal: dict[str, float]
-    false_negative_rate_by_demographic_signal: dict[str, float]
+    false_positive_rate_by_demographic_signal: dict[str, float | None]
+    false_negative_rate_by_demographic_signal: dict[str, float | None]
 
 
 class AuditReport(TypedDict):
@@ -135,6 +137,113 @@ def write_report(
     return output_path
 
 
+def load_report(input_path: Path) -> AuditReport:
+    """Load and validate an editable audit report."""
+    data = json.loads(input_path.read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or not isinstance(data.get("results"), list):
+        raise ValueError("Audit report must contain a results list.")
+
+    for entry in data["results"]:
+        if not isinstance(entry, dict):
+            raise ValueError("Each audit result must be a JSON object.")
+
+        review_id = entry.get("review_id")
+        if not isinstance(review_id, str):
+            raise ValueError("Each audit result must contain a review_id.")
+        if not isinstance(entry.get("predicted_biased"), bool):
+            raise ValueError(f"Review {review_id} must contain a Boolean predicted_biased value.")
+
+        expected_biased = entry.get("expected_biased")
+        demographic_signal = entry.get("demographic_signal")
+        if expected_biased is not None and not isinstance(expected_biased, bool):
+            raise ValueError(f"Review {review_id} expected_biased must be true, false, or null.")
+        if demographic_signal is not None and not isinstance(demographic_signal, str):
+            raise ValueError(f"Review {review_id} demographic_signal must be text or null.")
+        if (expected_biased is None) != (demographic_signal is None):
+            raise ValueError(
+                f"Review {review_id} must set both expected_biased and "
+                "demographic_signal, or leave both null."
+            )
+        if isinstance(demographic_signal, str) and not demographic_signal.strip():
+            raise ValueError(f"Review {review_id} demographic_signal cannot be blank.")
+
+    return cast("AuditReport", data)
+
+
+def calculate_metrics(results: Sequence[AuditResult]) -> AuditMetrics:
+    """Calculate error rates for each human-labeled demographic signal."""
+    labeled_by_signal: dict[str, list[AuditResult]] = {}
+    for result in results:
+        expected_biased = result["expected_biased"]
+        demographic_signal = result["demographic_signal"]
+        if expected_biased is None or demographic_signal is None:
+            continue
+
+        signal = demographic_signal.strip()
+        labeled_by_signal.setdefault(signal, []).append(result)
+
+    if not labeled_by_signal:
+        return {
+            "status": "unavailable",
+            "reason": (
+                "No complete human labels were found. Set expected_biased and "
+                "demographic_signal in the audit report."
+            ),
+            "false_positive_rate_by_demographic_signal": {},
+            "false_negative_rate_by_demographic_signal": {},
+        }
+
+    false_positive_rates: dict[str, float | None] = {}
+    false_negative_rates: dict[str, float | None] = {}
+    for signal, signal_results in labeled_by_signal.items():
+        actual_negative_count = sum(not result["expected_biased"] for result in signal_results)
+        actual_positive_count = sum(bool(result["expected_biased"]) for result in signal_results)
+        false_positive_count = sum(
+            result["predicted_biased"] and not result["expected_biased"]
+            for result in signal_results
+        )
+        false_negative_count = sum(
+            not result["predicted_biased"] and bool(result["expected_biased"])
+            for result in signal_results
+        )
+
+        false_positive_rates[signal] = (
+            false_positive_count / actual_negative_count if actual_negative_count else None
+        )
+        false_negative_rates[signal] = (
+            false_negative_count / actual_positive_count if actual_positive_count else None
+        )
+
+    return {
+        "status": "available",
+        "reason": (
+            "A rate is null when its demographic signal has no examples for "
+            "the required denominator."
+        ),
+        "false_positive_rate_by_demographic_signal": false_positive_rates,
+        "false_negative_rate_by_demographic_signal": false_negative_rates,
+    }
+
+
+def evaluate_report(
+    input_path: Path,
+    output_path: Path = EVALUATED_REPORT_PATH,
+) -> Path:
+    """Calculate metrics from an edited report and write the evaluated report."""
+    report = load_report(input_path)
+    report["metrics"] = calculate_metrics(report["results"])
+    output_path.write_text(
+        json.dumps(report, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    logger.info(
+        "bias_audit_evaluation_written",
+        input_path=str(input_path),
+        output_path=str(output_path),
+    )
+    return output_path
+
+
 async def load_reviews() -> list[Review]:
     """Load a random sample of completed reviews with stored sections.
 
@@ -170,9 +279,26 @@ async def run_audit() -> list[AuditResult]:
     return results
 
 
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse audit generation or evaluation arguments."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--evaluate",
+        type=Path,
+        metavar="REPORT_PATH",
+        help="Evaluate human labels in an existing bias audit report.",
+    )
+    return parser.parse_args(argv)
+
+
 def main() -> None:
-    """Configure logging and run the offline audit."""
+    """Run a new audit or evaluate an edited audit report."""
     configure_logging()
+    args = parse_args()
+    if args.evaluate:
+        evaluate_report(args.evaluate)
+        return
+
     asyncio.run(run_audit())
 
 
