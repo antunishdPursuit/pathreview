@@ -29,3 +29,15 @@ I reproduced issue #72 as a missing-feature gap. The expected offline audit scri
 **Blockers or open questions:**
 I still need to confirm which stored review source should be sampled and how the report should label false positives and false negatives when there is no existing ground-truth dataset.
 
+## Week 9 - Solution building & PR submission
+
+### Check-in 1 (mid-week)
+
+**Current progress:** I implemented the offline bias audit for Issue #72. The script samples up to 100 completed stored reviews, combines each review's content and suggestions, runs the existing bias detector, logs each result, and generates an editable JSON report. The same script can be edited by a human to add human labels and then calculate false-positive and false-negative rates by demographic signal. I also added three unit tests that passed.
+
+**Next steps:** Run the remaining repository checks, document unrelated existing failures, push the branch, open a draft pull request against the upstream repo, and complete Check-in 2 with the final PR information.
+
+**Blockers:** The local database contains only five eligible completed reviews, so the audit cannot demonstrate a full 100-review sample. The full unit suite currently reports 53 failures in unrelated test files, while all three tests for the audit workflow pass.
+
+---
+
