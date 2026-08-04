@@ -25,6 +25,8 @@ class AuditResult(TypedDict):
     review_text: str
     predicted_biased: bool
     reason: str
+    expected_biased: bool | None
+    demographic_signal: str | None
 
 
 class AuditMetrics(TypedDict):
@@ -95,6 +97,8 @@ def audit_reviews(reviews: Sequence[Review]) -> list[AuditResult]:
                 "review_text": review_text,
                 "predicted_biased": predicted_biased,
                 "reason": reason,
+                "expected_biased": None,
+                "demographic_signal": None,
             }
         )
 
