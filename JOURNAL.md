@@ -41,3 +41,19 @@ I still need to confirm which stored review source should be sampled and how the
 
 ---
 
+### Check-in 2 (end of week)
+
+**PR link:** https://github.com/ascherj/pathreview/pull/763
+
+**Branch:** `feat/72-bias-audit-report`
+
+**What you built:** I built an offline bias audit that samples completed stored reviews, runs their combined content and suggestions through the existing bias detector, and generates an editable JSON report. After human labels are added, the same script can calculate false-positive and false-negative rates by demographic signal and generate an evaluated report.
+
+**Tests added or updated:** I added `tests/unit/test_audit_bias.py` with three tests covering review-text extraction, labeled report evaluation and temporary-file cleanup, and invalid demographic signal rejection. All three audit tests pass. The full unit suite reported 378 passed and 53 failures in unrelated test files.
+
+**Self-review confirmation:**
+[x] `make check` introduces no new failures in the changed files. Focused Ruff, Black, and mypy checks pass. The repository-wide lint step stops on 182 unrelated existing errors.
+[x] `make test-unit` introduces no new audit failures. All three audit tests pass, while the repository-wide suite has 53 failures in unrelated test files.
+
+**Draft PR feedback received from:** none
+
