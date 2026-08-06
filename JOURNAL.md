@@ -57,29 +57,37 @@ I still need to confirm which stored review source should be sampled and how the
 
 **Draft PR feedback received from:** none
 
-## Week 10 - Reflection
+## Week 10 — Iteration & reflection
 
-**Did you receive reviewer feedback?**
+### Reviewer feedback
 
-No. Reviewer feedback was not provided during Summer 2026, so there was no feedback to address for this assignment.
+**Feedback received:** [ ] Yes [x] No
 
-### 1. What was harder than you expected?
+**Summary of feedback:** No reviewer feedback was provided during Summer 2026.
+
+**How you responded:**
+
+---
+
+### Reflection
+
+**What was harder than you expected?**
 
 The hardest part was making sure the AI stayed focused on Issue #72. Sometimes it tried to fix unrelated problems or expand the solution by adding more tests and changes than the issue required, so I had to keep bringing it back to the approved scope. It was also difficult to decide how to test the bias audit when the database contained only five eligible reviews instead of the requested sample of 100, and I ultimately decided to use the available reviews rather than invent data.
 
-### 2. What did you learn about working in a large codebase?
+**What did you learn about working in a large codebase?**
 
 Working in a large codebase taught me how important it is to understand where files and functions belong before changing anything. For Issue #72, I had to determine that the new audit belonged in `scripts/audit_bias.py`, understand how it would load reviews, and reuse the existing `BiasDetector` without modifying it because our task was to evaluate the detector. I also learned to keep track of the files I touched and how they interacted so that a narrow change would not affect unrelated behavior.
 
-### 3. How did AI tools help, and where did they fall short?
+**How did AI tools help — and where did they fall short?**
 
 AI tools helped me research the codebase, understand existing functions, write parts of the audit script, and develop tests. They fell short when the requirements were unclear, and they sometimes tried to fix unrelated problems, add more tests, or expand the solution beyond the issue. I still had to decide whether to use only the five stored reviews, whether creating additional data was appropriate, and how human labels should be added before calculating false-positive and false-negative rates.
 
-### 4. What would you do differently if you started over?
+**What would you do differently if you started over?**
 
 If I started over, I would read the issue and nearby code more deeply before implementing anything, and I would ask the maintainers more specific questions when the requirements were unclear. This could have clarified whether the sample of 100 was a strict requirement, how ground-truth labels should be established, and what report format they expected. I might also choose a more challenging issue that would expand my abilities while still keeping the implementation narrowly focused.
 
-### 5. What are you most proud of from this module?
+**What are you most proud of from this module?**
 
 I am most proud that I completed the assignments and applied lessons from earlier AI 201 projects to the final pull request. For Issue #72, I built a flow that loads stored reviews, generates an editable JSON report for human labels, and processes the updated report to calculate the final metrics without modifying `BiasDetector` or inventing data. I am also proud that the course helped me make better architecture decisions, explain the code more clearly in interviews, and apply what I learned during a hackathon.
 
